@@ -1,16 +1,18 @@
 Malte Trigo 50g 
 Malte Caramelo 10g 
 Malte Aveia 20g 
+Lupulo Fibonacci 15g
 Levedura Alta 5g
 
 Cozimento 
+    20C durante 15 minutos
     30C durante 50 minutos
     80C durante 0 dias
     30C durante 10 minutos
     80C durante 1 dias
 
 Fermentação
-    80C durante 5 minutos    
+    80C durante 5 minutos        
     20C durante 50 minutos
     .
 
