@@ -4,6 +4,7 @@ StrongAle é uma linguagem de programação esotérica com o propósito de const
 
 Por exemplo a "receita" abaixo é um programa que calcula e imprime a sequência fibonacci até 100.
 
+```
 Malte Trigo 50g 
 Malte Caramelo 10g 
 Malte Aveia 20g 
@@ -31,8 +32,10 @@ Maturação
     30C durante 50 minutos
     80C durante 20 minutos 
     . 
-
+```
 A receita é interpretada e transformada em um código Javascript.
 
-Para testar basta somente executar o comando abaixo:
+Para testar basta executar o comando:
+```
 node main.js fibonacci.txt
+```
