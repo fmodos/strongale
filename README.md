@@ -115,10 +115,10 @@ A operação de WHILE é definida pela palavra Maturação
 Exemplo:
 - Enquanto o valor da varíavel código de referência 10 for menor que 100, imprime a varável com código de referência 10
 
+```
 Maturação
     90C durante 10 minutos < 80C durante 100 dias
     20C durante 10 minutos
-
 ```
 
 
