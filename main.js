@@ -1,332 +1,310 @@
-fs = require('fs')
-process = require('process'); 
-var code_to_execute = process.argv[2] || "fibonacci.txt"
+const fs = require('fs')
+const process = require('process')
 
-fs.readFile(code_to_execute, 'utf8', function (err,data) {
-    if (err) {
-        return console.log(err);
-    }
-    execute_code(data)
-    });
+const codeToExecute = process.argv[2] || 'fibonacci.txt'
 
+fs.readFile(codeToExecute, 'utf8', (err, data) => {
+    if (err)
+        return console.log(err)
 
+    executeCode(data)
+})
 
-function lexer (code) {
-    var _tokens = code
-                    .replace(/[\n\r]/g, ' *nl* ')
-                    .replace(/Malte/g, ' *var_int* ')
-                    .replace(/Lupulo/g, ' *var_str* ')
-                    .replace(/Fermentação/g, ' *if* ')
-                    .replace(/Cozimento/g, ' *statement* ')
-                    .replace(/Maturação/g, ' *while* ')
-                    .replace(/minutos/g, ' *memory* ')
-                    .replace(/dias/g, ' *constant* ')
-                    .replace(/Levedura/g, ' *var_bool* ')
-                    .replace(/\./g, ' *endop* ')
-                    .replace(/([0-9]+g)/g, ' *ref_memory*_$1 ')
-                    .replace(/durante/g, '')
-                    .split(/[\t\f\v ]+/)
-    var tokens = []
-    for (var i = 0; i < _tokens.length; i++) {
-      var t = _tokens[i]
-      if(t.length <= 0 || isNaN(t)) {
-        if (t === '*nl*') {
-          //tokens.push({type: 'newline'})
-        } else if (t === '*var_int*') {
-          tokens.push({type: 'var_int'})
-        } else if (t === '*var_str*') {
-          tokens.push({type: 'var_str'})
-        } else if (t === '*var_bool*') {
-          tokens.push({type: 'var_bool'})
-        } else if (t === '*statement*') {
-          tokens.push({type: 'statement'})
-        } else if (t === '*while*') {
-            tokens.push({type: 'while'})
-        } else if (t === '*if*') {
-            tokens.push({type: 'if'})
-        } else if (t === '*endop*') {
-            tokens.push({type: 'endop'})
-        } else if (t === '*constant*') {
-            tokens.push({type: 'constant'})
-        } else if (t === '*memory*') {
-            tokens.push({type: 'memory'})
-        } else if (t.startsWith('*ref_memory*')) {
-            tokens.push({type: 'ref_memory', value: t.replace('*ref_memory*_','')})
-        } else if(t.length > 0) {
-          tokens.push({type: 'word', value: t})
+const applyLexicalAnalysis = code => {
+    const codeTokens = code
+        .replace(/[\n\r]/g, ' *nl* ')
+        .replace(/Malte/g, ' *var_int* ')
+        .replace(/Lupulo/g, ' *var_str* ')
+        .replace(/Fermentação/g, ' *if* ')
+        .replace(/Cozimento/g, ' *statement* ')
+        .replace(/Maturação/g, ' *while* ')
+        .replace(/minutos/g, ' *memory* ')
+        .replace(/dias/g, ' *constant* ')
+        .replace(/Levedura/g, ' *var_bool* ')
+        .replace(/\./g, ' *endop* ')
+        .replace(/([0-9]+g)/g, ' *ref_memory*_$1 ')
+        .replace(/durante/g, '')
+        .split(/[\t\f\v ]+/)
+
+    const validTokens = [
+        'var_int',
+        'var_str',
+        'if',
+        'statement',
+        'while',
+        'memory',
+        'constant',
+        'var_bool',
+        'endop'
+    ]
+
+    const tokens = codeTokens.map(token => {
+        const tokenLength = token.length
+
+        if (tokenLength <= 0 || isNaN(token)) {
+            const tokenType = token.substring(1, tokenLength - 1)
+            if (validTokens.find(value => value == tokenType)) {
+                return { type: tokenType }
+            } else if (token === '*nl*') { }
+            else if (token.startsWith('*ref_memory*')) {
+                return { type: 'ref_memory', value: token.replace('*ref_memory*_', '') }
+            } else if (token.length > 0) {
+                return { type: 'word', value: token }
+            }
+        } else {
+            return { type: 'number', value: token }
         }
-      } else {
-        tokens.push({type: 'number', value: t})
-      }
-    }  
+    }).filter(value => value != null)
+
     return tokens
-  }
-
-
-function get_ref_memoria(value){
-    return value.replace('g','')
-}
-
-function parser(tokens){
-    var AST = []
-    while(tokens.length > 0){
-        var cur_token = tokens.shift()
-        switch(cur_token.type){
-            case 'if':
-                var block = {
-                    type : "IfExpression",
-                    expression : findExpression(tokens),
-                    body : parser(tokens)
-                    
-                }
-                AST.push(block)
-                break;
-            case 'while':
-                var block = {
-                    type : "WhileExpression",
-                    expression : findExpression(tokens),
-                    body : parser(tokens)
-                    
-                }
-                AST.push(block)
-                break;
-            case 'endop':
-                return AST;
-            case 'var_int':
-                next_token = tokens.shift();
-                valor_variavel = ''
-                while(next_token.type != 'ref_memory'){
-                    valor_variavel += next_token.value
-                    next_token = tokens.shift();
-                }
-                var block = {
-                    type : "VariableDefinition",
-                    var_type : 'int',
-                    ref : get_ref_memoria(next_token.value),
-                    value: valor_variavel.replace(/ /g, '').length
-                } 
-                AST.push(block)
-                break;
-            case 'var_str':
-                next_token = tokens.shift();
-                valor_variavel = ''
-                while(next_token.type != 'ref_memory'){
-                    valor_variavel += next_token.value + ' '
-                    next_token = tokens.shift();
-                }
-                var block = {
-                    type : "VariableDefinition",
-                    var_type : 'str',
-                    ref : get_ref_memoria(next_token.value),
-                    value: valor_variavel.trim()
-                } 
-                AST.push(block)
-                break;
-            case 'var_bool':
-                next_token = tokens.shift();
-                valor_variavel = ''
-                while(next_token.type != 'ref_memory'){
-                    valor_variavel += next_token.value
-                    next_token = tokens.shift();
-                }
-                var block = {
-                    type : "VariableDefinition",
-                    var_type : 'bool',
-                    ref : get_ref_memoria(next_token.value),
-                    value: valor_variavel == 'Alta'
-                } 
-                AST.push(block)        
-                break;                
-            case 'word':
-                var block = null
-                if(cur_token.value == '30C'){
-                    block = {
-                        type : "SetVariable",
-                        var : findArgument(tokens),
-                        expression: findExpression(tokens)
-                    } 
-                } else if(cur_token.value == '20C'){
-                    block = {
-                        type : "CallExpression",
-                        expression: 'print_out',
-                        arguments : findArgument(tokens)
-                    } 
-                }
-                else if(cur_token.value == '10C'){
-                    block = {
-                        type : "CallExpression",
-                        expression: 'print_out',
-                        arguments : findArgument(tokens)
-                    } 
-                }
-                AST.push(block)            
-        }        
-            
-    }
-    return AST;
 }
 
 
-function getCompareOperator(value){
-    if(value == ','){
-        return '==';
+const getMemoryReference = value => {
+    return value.replace('g', '')
+}
+
+const parse = (tokens) => {
+    const ValidTokens = {
+        _if(currentToken, tokens) {
+            const block = {
+                type: "IfExpression",
+                expression: findExpression(tokens),
+                body: parse(tokens)
+            }
+            return block
+        },
+        _while(currentToken, tokens) {
+            const block = {
+                type: "WhileExpression",
+                expression: findExpression(tokens),
+                body: parse(tokens)
+
+            }
+            return block
+        },
+        _endop(currentToken, tokens) {
+            return null
+        },
+        _var_int(currentToken, tokens) {
+            let nextToken = tokens.shift()
+            let variableValue = ''
+            while (nextToken.type != 'ref_memory') {
+                variableValue += nextToken.value
+                nextToken = tokens.shift()
+            }
+            const block = {
+                type: "VariableDefinition",
+                var_type: 'int',
+                ref: getMemoryReference(nextToken.value),
+                value: variableValue.replace(/ /g, '').length
+            }
+            return block
+        },
+        _var_str(currentToken, tokens) {
+            let nextToken = tokens.shift()
+            let variableValue = ''
+            while (nextToken.type != 'ref_memory') {
+                variableValue += nextToken.value + ' '
+                nextToken = tokens.shift()
+            }
+            const block = {
+                type: "VariableDefinition",
+                var_type: 'str',
+                ref: getMemoryReference(nextToken.value),
+                value: variableValue.trim()
+            }
+            return block
+        },
+        _var_bool(currentToken, tokens) {
+            let nextToken = tokens.shift()
+            let variableValue = ''
+            while (nextToken.type != 'ref_memory') {
+                variableValue += nextToken.value
+                nextToken = tokens.shift()
+            }
+            const block = {
+                type: "VariableDefinition",
+                var_type: 'bool',
+                ref: getMemoryReference(nextToken.value),
+                value: variableValue == 'Alta'
+            }
+            return block
+        },
+        _word(currentToken, tokens) {
+            let block = null
+            if (currentToken.value == '30C') {
+                block = {
+                    type: "SetVariable",
+                    var: findArgument(tokens),
+                    expression: findExpression(tokens)
+                }
+            } else if (currentToken.value == '20C') {
+                block = {
+                    type: "CallExpression",
+                    expression: 'print_out',
+                    arguments: findArgument(tokens)
+                }
+            }
+            else if (currentToken.value == '10C') {
+                block = {
+                    type: "CallExpression",
+                    expression: 'print_out',
+                    arguments: findArgument(tokens)
+                }
+            }
+            return block
+        }
     }
-    if(value == '>,'){
-        return '>=';
+
+    let AST = []
+    while (tokens.length > 0) {
+        const currentToken = tokens.shift()
+        const currentTokenType = '_' + currentToken.type
+        const parseFunction = ValidTokens[currentTokenType]
+
+        if (!parseFunction)
+            continue
+
+        const parseBlock = parseFunction(currentToken, tokens)
+
+        if (!parseBlock)
+            return AST
+
+        AST.push(parseBlock)
     }
-    if(value == '<,'){
-        return '<=';
-    }
-    if(value == '-'){
-        return '!=';
-    }
-    return value;
+
+    return AST
 }
 
 
-function findExpression(tokens){
-    cur_token = tokens.shift();
-    switch(cur_token.type){
+const getCompareOperator = value => {
+    const CompareOperators = {
+        ',': '==',
+        '>,': '>=',
+        '<,': '<=',
+        '-': '!='
+    }
+
+    return CompareOperators[value] || value
+}
+
+
+const findExpression = tokens => {
+    const currentToken = tokens.shift()
+
+    switch (currentToken.type) {
         case 'word':
-            if(cur_token.value == '80C'){
-                return findArgument(tokens);
+            if (currentToken.value == '80C') {
+                return findArgument(tokens)
             }
-            if(cur_token.value == '90C'){
+            if (currentToken.value == '90C') {
                 var block = {
-                    type : 'CompareExpression',
-                    left : findArgument(tokens),
-                    operator : getCompareOperator(tokens.shift().value),
-                    right : findExpression(tokens)
-                }
-                return block;
-            }
-            var mathOperator = getMathExpressionOperator(cur_token.value)
-            if(mathOperator != null){
-                var block = {
-                    type : 'MathExpression',
-                    operator : mathOperator,
-                    left : findArgument(tokens),
-                    right : findExpression(tokens)
+                    type: 'CompareExpression',
+                    left: findArgument(tokens),
+                    operator: getCompareOperator(tokens.shift().value),
+                    right: findExpression(tokens)
                 }
                 return block
             }
-        }
-}
-
-function getMathExpressionOperator(value){
-    if(value == '40C'){
-        return '+';
-    }
-    if(value == '50C'){
-        return '-';
-    }
-    if(value == '60C'){
-        return '*';
-    }
-    if(value == '70C'){
-        return '/';
+            var mathOperator = getMathExpressionOperator(currentToken.value)
+            if (mathOperator != null) {
+                var block = {
+                    type: 'MathExpression',
+                    operator: mathOperator,
+                    left: findArgument(tokens),
+                    right: findExpression(tokens)
+                }
+                return block
+            }
     }
 }
 
-function findArgument(tokens){
-    valor_variavel = tokens.shift();
-    tipo_acesso = tokens.shift();
+const getMathExpressionOperator = value => {
+    const MathExpressionOperators = {
+        '40C': '+',
+        '50C': '-',
+        '60C': '*',
+        '70C': '/',
+    }
+    return MathExpressionOperators[value]
+}
+
+const findArgument = tokens => {
+    const variableValue = tokens.shift()
+    const accessType = tokens.shift()
     return {
-        type : tipo_acesso.type == 'constant' ? "ConstantValue" : "VariableReference",
-        value: valor_variavel.value
-    } 
+        type: accessType.type == 'constant' ? "ConstantValue" : "VariableReference",
+        value: variableValue.value
+    }
 }
 
-function transformer(_ast){
-    var program = "var memory = {};\n"
-    while(_ast.length > 0){
-        var cur_token = _ast.shift()        
-        program += apply_transformer(cur_token) + "\n"
+const transformAST = _ast => {
+    let program = "var memory = {};\n"
+    while (_ast.length > 0) {
+        const currentToken = _ast.shift()
+        program += applyTransformer(currentToken) + "\n"
     }
     return program
 }
 
-function apply_transformer(block){
-    switch(block.type){
-        case 'VariableDefinition':
-            return t_variable_definition(block);
-        case 'VariableReference':
-            return t_variable_reference(block);
-        case 'ConstantValue':
-            return t_constant_value(block);
-        case 'CallExpression':
-            return t_call_expression(block);
-        case 'SetVariable':
-            return t_set_variable(block);
-        case 'MathExpression':
-            return t_math_expression(block);
-        case 'IfExpression':
-            return t_if_expression(block);
-        case 'WhileExpression':
-            return t_while_expression(block);
-        case 'CompareExpression':
-            return t_compare_expression(block);
+const applyTransformer = block => {
+    const BlockTypes = {
+        VariableDefinition() {
+            return "memory['" + block.ref + "'] = " + getBlockValue(block) + ";"
+        },
+        VariableReference() {
+            return "memory[" + block.value + "]"
+        },
+        ConstantValue() {
+            return block.value
+        },
+        CallExpression() {
+            if (block.expression == 'print_out') {
+                return "console.log(" + applyTransformer(block.arguments) + ");"
+            }
+            return "memory['" + block.ref + "'] = " + block.value + ";"
+        },
+        SetVariable() {
+            return applyTransformer(block.var) + " = " + applyTransformer(block.expression) + ";"
+        },
+        MathExpression() {
+            return applyTransformer(block.left) + " " + block.operator + " " + applyTransformer(block.right) + " "
+        },
+        IfExpression() {
+            return "if(" + applyTransformer(block.expression) + ") { \n" + getBlockBody(block.body) + " } \n"
+        },
+        WhileExpression() {
+            return "while(" + applyTransformer(block.expression) + ") { \n" + getBlockBody(block.body) + " } \n"
+        },
+        CompareExpression() {
+            return applyTransformer(block.left) + " " + block.operator + " " + applyTransformer(block.right)
+        },
     }
 
+    const blockFunction = BlockTypes[block.type]
+
+    return blockFunction()
 }
 
-function t_compare_expression(block){
-    return apply_transformer(block.left) + " "+block.operator + " " +  apply_transformer(block.right);   
-}
-
-function t_while_expression(block){
-    return "while("+apply_transformer(block.expression) + ") { \n"+  get_body(block.body) +  " } \n";   
-}
-
-function t_if_expression(block){
-    return "if("+apply_transformer(block.expression) + ") { \n"+  get_body(block.body) +  " } \n";   
-}
-
-function get_body(_ast){
+const getBlockBody = _ast => {
     var program = ""
-    while(_ast.length > 0){
-        var cur_token = _ast.shift()        
-        program += apply_transformer(cur_token) + "\n"
+    while (_ast.length > 0) {
+        var currentToken = _ast.shift()
+        program += applyTransformer(currentToken) + "\n"
     }
     return program
 }
 
-function t_math_expression(block){
-    return apply_transformer(block.left) + " "+block.operator+" " +  apply_transformer(block.right) + " ";   
-}
-
-function t_set_variable(block){
-    return apply_transformer(block.var) +" = " +apply_transformer(block.expression) +";";
-}
-
-function t_variable_definition(block){
-    return "memory['"+block.ref+"'] = "+get_value(block)+";";
-}
-
-function get_value(block){
-    if(block.var_type == 'str'){
-        return "'"+block.value+"'";
+const getBlockValue = block => {
+    if (block.var_type == 'str') {
+        return "'" + block.value + "'";
     }
     return block.value
 }
 
-function t_call_expression(block){
-    if(block.expression == 'print_out'){
-        return "console.log("+apply_transformer(block.arguments)+");";
-    }
-    return "memory['"+block.ref+"'] = "+block.value+";";
-}
-
-function t_constant_value(block){
-    return block.value
-}
-
-function t_variable_reference(block){
-    return "memory["+block.value+"]";
-}
-
-function execute_code(code){    
-    AST = parser(lexer(code))
-    var compiled = transformer(AST)
+const executeCode = code => {
+    AST = parse(applyLexicalAnalysis(code))
+    const compiled = transformAST (AST)
     eval(compiled)
 }    
